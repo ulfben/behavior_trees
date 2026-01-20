@@ -68,7 +68,7 @@ static Vector2 vector_from_angle(float angle, float magnitude) noexcept{
 }
 
 struct Entity final{
-    static constexpr float MIN_SPEED = 1.0f;
+    static constexpr float MIN_SPEED = 10.0f;
     static constexpr float MAX_SPEED = 200.0f;
     std::string_view debug_state = "None";
     Vector2 position = random_range(ZERO, STAGE_SIZE);
@@ -95,45 +95,46 @@ struct Context;
 // Base node interface
 struct Node{
     virtual ~Node() = default;
-    virtual Status tick(Context& ctx, float dt) noexcept = 0;
+    virtual Status tick(Context& ctx, float dt) const noexcept = 0;
 };
 
-// Composite: runs children left-to-right until one fails (or runs).
-// Success only if all succeed.
+// Composite: Runs children left-to-right.
+// IF a child fails, the sequence Fails immediately.
+// IF a child runs, the sequence returns Running (and restarts from 0 next frame).
 struct Sequence final : Node{
     std::vector<Node*> children;
-    int index = 0;
 
     explicit Sequence(std::initializer_list<Node*> xs) : children(xs){}
 
-    Status tick(Context& ctx, float dt) noexcept override{
-        while(index < narrow_cast<int>(children.size())){
-            const Status s = children[index]->tick(ctx, dt);
+    Status tick(Context& ctx, float dt) const noexcept override{
+        for(const auto* child : children){
+            const Status s = child->tick(ctx, dt);
+
+            // If child is running, we return Running. 
+            // Crucially, we do NOT save the index. Next frame starts at 0 again.
             if(s == Status::Running) return Status::Running;
-            if(s == Status::Failure){ index = 0; return Status::Failure; }
-            ++index; // Success - continue
+
+            if(s == Status::Failure) return Status::Failure;
         }
-        index = 0;
         return Status::Success;
     }
 };
 
-// Composite: runs children left-to-right until one succeeds (or runs).
-// Failure only if all fail.
+// Composite: Runs children left-to-right.
+// IF a child succeeds, the selector Succeeds immediately.
+// IF a child runs, the selector returns Running.
 struct Selector final : Node{
     std::vector<Node*> children;
-    int index = 0;
 
     explicit Selector(std::initializer_list<Node*> xs) : children(xs){}
 
-    Status tick(Context& ctx, float dt) noexcept override{
-        while(index < narrow_cast<int>(children.size())){
-            const Status s = children[index]->tick(ctx, dt);
+    Status tick(Context& ctx, float dt) const noexcept override{
+        for(const auto* child : children){
+            const Status s = child->tick(ctx, dt);
+
             if(s == Status::Running) return Status::Running;
-            if(s == Status::Success){ index = 0; return Status::Success; }
-            ++index; // Failure - try next
+            if(s == Status::Success) return Status::Success;
         }
-        index = 0;
         return Status::Failure;
     }
 };
@@ -145,7 +146,7 @@ using LeafFn = Status(*)(Context&, float) noexcept;
 struct Leaf final : Node{
     LeafFn fn{};
     explicit Leaf(LeafFn f) : fn(f){}
-    Status tick(Context& ctx, float dt) noexcept override{ return fn(ctx, dt); }
+    Status tick(Context& ctx, float dt) const noexcept override{ return fn(ctx, dt); }
 };
 
 static Vector2 wrap(Vector2 p) noexcept{
