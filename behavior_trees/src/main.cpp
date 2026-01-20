@@ -253,20 +253,15 @@ static Status DoSeekFood(Context& ctx, float) noexcept{
 static Status DoWander(Context& ctx, float dt) noexcept{    
     ctx.self.debug_state = "WANDER";
     auto& entity = ctx.self;
-    // Project a circle in front of the agent (based on current heading)
+    
     Vector2 heading = Vector2Normalize(entity.velocity);
-    Vector2 circle_center = heading * Entity::wander_distance;
-
-    // Jitter the angle a little bit each tick (scale by dt for frame-rate independence)
-    entity.wander_angle += unit_range() * Entity::wander_jitter * dt;
-
-    // Displacement on the circle
-    Vector2 displacement = {
-        std::cos(entity.wander_angle) * Entity::wander_radius,
+    Vector2 circle_center = heading * Entity::wander_distance;  // Project a circle in front of the agent
+    entity.wander_angle += unit_range() * Entity::wander_jitter * dt; // Jitter the angle a little bit each tick     
+    Vector2 displacement = { 
+        std::cos(entity.wander_angle) * Entity::wander_radius, // pick a point on the circle
         std::sin(entity.wander_angle) * Entity::wander_radius
-    };
-    // The wander target in world space
-    Vector2 target = entity.position + circle_center + displacement;
+    };    
+    Vector2 target = entity.position + circle_center + displacement; // The wander target in world space
     auto toward = Vector2Normalize(target - entity.position);
     auto desired_velocity = toward * Entity::MIN_SPEED;
     ctx.self.velocity = Vector2Lerp(ctx.self.velocity, desired_velocity, 0.02f);
@@ -291,11 +286,11 @@ struct DemoTree final{
 //free function update, to avoid circular dependency problems 
 static void update_entity(Entity& e, DemoTree& tree, World& world, float dt) noexcept{
     Context ctx{e, world};
-    constexpr float hunger_per_second = 0.04f; // ~25s from full to starving
+    constexpr float hunger_per_second = 0.08f; // ~12s from full to starving
     e.hunger = std::clamp(e.hunger + hunger_per_second * dt, 0.0f, 1.0f);
     std::ignore = tree.brain.tick(ctx, dt);
     e.position += e.velocity * dt;
-    e.position = constrain(e.position);  
+    e.position = wrap(e.position);  
 }
 
 struct Window final{
@@ -342,7 +337,7 @@ struct Window final{
 int main(){
     auto window = Window(STAGE_WIDTH, STAGE_HEIGHT, "Behavior Tree Demo");    
     bool isPaused = false;
-    std::vector<Entity> entities(1);
+    std::vector<Entity> entities(8);
     World world;
     DemoTree tree;
     while(!window.should_close()){
