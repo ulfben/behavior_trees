@@ -68,11 +68,16 @@ static Vector2 vector_from_angle(float angle, float magnitude) noexcept{
 }
 
 struct Entity final{
-    static constexpr float MIN_SPEED = 10.0f;
+    static constexpr float MIN_SPEED = 24.0f;
     static constexpr float MAX_SPEED = 200.0f;
     std::string_view debug_state = "None";
+    static constexpr float wander_radius = 60.0f;
+    static constexpr float wander_distance = 80.0f;
+    static constexpr float wander_jitter = 4.0f;   // radians/sec-ish when multiplied by dt
+    float wander_angle = random_range(0.0f, 2.0f * PI);
+
     Vector2 position = random_range(ZERO, STAGE_SIZE);
-    Vector2 velocity = vector_from_angle(random_range(0.0f, 360.0f) * TO_RAD, MIN_SPEED);
+    Vector2 velocity = vector_from_angle(wander_angle, MIN_SPEED);
 
     void render() const noexcept{
         Vector2 local_x = (Vector2Length(velocity) != 0) ? Vector2Normalize(velocity) : Vector2{1, 0};
@@ -236,11 +241,26 @@ static Status DoSeekFood(Context& ctx, float) noexcept{
     return (dist < 16.0f) ? Status::Success : Status::Running;
 }
 
-static Status DoWander(Context& ctx, float) noexcept{    
+static Status DoWander(Context& ctx, float dt) noexcept{    
     ctx.self.debug_state = "WANDER";
-    const float a = random_range(0.0f, 360.0f) * TO_RAD;
-    const Vector2 v = vector_from_angle(a, Entity::MIN_SPEED * 3.0f);
-    ctx.self.velocity = Vector2Lerp(ctx.self.velocity, v, 0.02f);
+    auto& entity = ctx.self;
+    // Project a circle in front of the agent (based on current heading)
+    Vector2 heading = Vector2Normalize(entity.velocity);
+    Vector2 circle_center = heading * Entity::wander_distance;
+
+    // Jitter the angle a little bit each tick (scale by dt for frame-rate independence)
+    entity.wander_angle += unit_range() * Entity::wander_jitter * dt;
+
+    // Displacement on the circle
+    Vector2 displacement = {
+        std::cos(entity.wander_angle) * Entity::wander_radius,
+        std::sin(entity.wander_angle) * Entity::wander_radius
+    };
+    // The wander target in world space
+    Vector2 target = entity.position + circle_center + displacement;
+    auto toward = Vector2Normalize(target - entity.position);
+    auto desired_velocity = toward * Entity::MIN_SPEED;
+    ctx.self.velocity = Vector2Lerp(ctx.self.velocity, desired_velocity, 0.02f);
     return Status::Running;
 }
 
