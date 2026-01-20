@@ -78,6 +78,8 @@ struct Entity final{
 
     Vector2 position = random_range(ZERO, STAGE_SIZE);
     Vector2 velocity = vector_from_angle(wander_angle, MIN_SPEED);
+    float hunger = random_range(0.0f, 1.0f); // 0 = full, 1 = starving
+    bool isHungry = false;
 
     void render() const noexcept{
         Vector2 local_x = (Vector2Length(velocity) != 0) ? Vector2Normalize(velocity) : Vector2{1, 0};
@@ -88,8 +90,8 @@ struct Entity final{
         Vector2 left = position - (local_x * L) + (local_y * H);
         Vector2 right = position - (local_x * L) - (local_y * H);
         DrawTriangle(tip, right, left, GREEN);
-           // Debug: velocity vector (scaled for visibility)
-        DrawLineV(position, position + velocity * 2.0f, BLUE);
+           // Debug: velocity vector
+        DrawLineV(position, position + velocity, BLUE);
     }   
 };
 
@@ -170,7 +172,7 @@ static Vector2 constrain(Vector2 p) noexcept{
 
 static Vector2 seek(Vector2 from, Vector2 to, float speed) noexcept{
     Vector2 d = to - from;
-    if(Vector2LengthSqr(d) < 0.0001f) return ZERO;
+    //if(Vector2LengthSqr(d) < 0.0001f) return ZERO;
     return Vector2Normalize(d) * speed;
 }
 
@@ -222,9 +224,11 @@ static Status ThreatNearby(Context& ctx, float) noexcept{
     return (dist < 180.0f) ? Status::Success : Status::Failure;
 }
 
-static Status Hungry(Context& ctx, float) noexcept{    
-    const float x = ctx.self.position.x / STAGE_WIDTH;
-    return (x < 0.35f) ? Status::Success : Status::Failure;
+static Status Hungry(Context& ctx, float) noexcept{
+    // Hysteresis: enter hungry at 0.65, exit hungry at 0.45
+    if(!ctx.self.isHungry && ctx.self.hunger > 0.65f) ctx.self.isHungry = true;
+    if(ctx.self.isHungry && ctx.self.hunger < 0.45f) ctx.self.isHungry = false;
+    return ctx.self.isHungry ? Status::Success : Status::Failure;
 }
 
 static Status DoFlee(Context& ctx, float) noexcept{
@@ -236,9 +240,14 @@ static Status DoFlee(Context& ctx, float) noexcept{
 static Status DoSeekFood(Context& ctx, float) noexcept{
     ctx.self.debug_state = "SEEK FOOD";
     ctx.self.velocity = seek(ctx.self.position, ctx.world.foodPos, Entity::MAX_SPEED * 0.7f);
-    // Consider "success" once we reach food
+
     const float dist = Vector2Distance(ctx.self.position, ctx.world.foodPos);
-    return (dist < 16.0f) ? Status::Success : Status::Running;
+    if(dist < 16.0f){
+        ctx.self.hunger = 0.0f;      // ate - now full
+        ctx.self.isHungry = false;   // optional: immediate exit
+        return Status::Success;
+    }
+    return Status::Running;
 }
 
 static Status DoWander(Context& ctx, float dt) noexcept{    
@@ -282,6 +291,8 @@ struct DemoTree final{
 //free function update, to avoid circular dependency problems 
 static void update_entity(Entity& e, DemoTree& tree, World& world, float dt) noexcept{
     Context ctx{e, world};
+    constexpr float hunger_per_second = 0.04f; // ~25s from full to starving
+    e.hunger = std::clamp(e.hunger + hunger_per_second * dt, 0.0f, 1.0f);
     std::ignore = tree.brain.tick(ctx, dt);
     e.position += e.velocity * dt;
     e.position = constrain(e.position);  
@@ -310,7 +321,13 @@ struct Window final{
         world.render();
         for(const auto& e : entities){
             e.render(); 
-            DrawText(TextFormat("Mode: %s", e.debug_state.data()), e.position.x+10, e.position.y+10, FONT_SIZE, DARKGRAY);
+            Vector2 p = {e.position.x + 10.0f, e.position.y + 10.0f};
+            DrawText(TextFormat("Mode: %s", e.debug_state.data()), p.x, p.y, FONT_SIZE, DARKGRAY);
+            const float w = 40.0f;
+            const float h = 6.0f;
+            p.y += FONT_SIZE;
+            DrawRectangleV(p, {w, h}, DARKGRAY);
+            DrawRectangleV(p, {w * e.hunger, h}, ORANGE);
         }     
         DrawText("Press SPACE to pause/unpause", 10, STAGE_HEIGHT - FONT_SIZE, FONT_SIZE, DARKGRAY);
         DrawFPS(10, STAGE_HEIGHT - FONT_SIZE * 2);        
