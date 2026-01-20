@@ -3,5 +3,5 @@
     <Platform Name="x64" />
     <Platform Name="x86" />
   </Configurations>
-  <Project Path="behavior_trees/behavior_trees.vcxproj" />
+  <Project Path="behavior_trees/behavior_trees.vcxproj" Id="da5c3452-a66c-4632-8d60-7f67ba1b99fe" />
 </Solution>
