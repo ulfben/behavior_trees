@@ -3,7 +3,7 @@
  * -------------
  * This code was written for educational purposes.
  * Original repository: https://github.com/ulfben/behavior_trees/
- * 
+ *
  * Copyright (c) 2026, Ulf Benjaminsson
  */
 #include <codeanalysis\warnings.h>
@@ -12,7 +12,6 @@
 #include "raylib.h"
 #include "raymath.h"
 #pragma warning(pop)
-#include <concepts>
 #include <cassert>
 #include <string_view>
 #include <span>
@@ -21,6 +20,7 @@
 #include <cstdlib>
 #include <stdexcept>
 #include <algorithm>
+#include <array>
 
 constexpr int STAGE_WIDTH = 1280;
 constexpr int STAGE_HEIGHT = 720;
@@ -58,8 +58,8 @@ static float random_range(float min, float max) noexcept{
 
 static Vector2 random_range(const Vector2& min, const Vector2& max) noexcept{
     return {
-       random_range(min.x, max.x),
-       random_range(min.y, max.y)
+        random_range(min.x, max.x),
+        random_range(min.y, max.y)
     };
 }
 
@@ -70,13 +70,23 @@ static Vector2 vector_from_angle(float angle, float magnitude) noexcept{
 struct Entity final{
     static constexpr float MIN_SPEED = 24.0f;
     static constexpr float MAX_SPEED = 200.0f;
-    std::string_view debug_state = "None";
+    static constexpr float drag = 0.01f;
+    static constexpr float seek_weight = 1.0f;
+    static constexpr float flee_weight = 1.2f;
+    static constexpr float wander_weight = 1.0f;
     static constexpr float wander_radius = 60.0f;
     static constexpr float wander_distance = 80.0f;
     static constexpr float wander_jitter = 4.0f;   // radians/sec-ish when multiplied by dt
+    
+    // Patrol mission
+    int waypoint_index = 0;
+    static constexpr float waypoint_radius = 18.0f;    
+    std::array<int, 8> bt_mem{}; // Behavior-tree memory (one slot is enough for this demo)
+        
+    std::string_view debug_state = "None";    
     float wander_angle = random_range(0.0f, 2.0f * PI);
-
     Vector2 position = random_range(ZERO, STAGE_SIZE);
+    Vector2 acceleration = ZERO;
     Vector2 velocity = vector_from_angle(wander_angle, MIN_SPEED);
     float hunger = random_range(0.0f, 1.0f); // 0 = full, 1 = starving
     bool isHungry = false;
@@ -90,9 +100,8 @@ struct Entity final{
         Vector2 left = position - (local_x * L) + (local_y * H);
         Vector2 right = position - (local_x * L) - (local_y * H);
         DrawTriangle(tip, right, left, GREEN);
-           // Debug: velocity vector
         DrawLineV(position, position + velocity, BLUE);
-    }   
+    }
 };
 
 enum class Status{ Success, Failure, Running };
@@ -116,11 +125,7 @@ struct Sequence final : Node{
     Status tick(Context& ctx, float dt) const noexcept override{
         for(const auto* child : children){
             const Status s = child->tick(ctx, dt);
-
-            // If child is running, we return Running. 
-            // Crucially, we do NOT save the index. Next frame starts at 0 again.
             if(s == Status::Running) return Status::Running;
-
             if(s == Status::Failure) return Status::Failure;
         }
         return Status::Success;
@@ -138,7 +143,6 @@ struct Selector final : Node{
     Status tick(Context& ctx, float dt) const noexcept override{
         for(const auto* child : children){
             const Status s = child->tick(ctx, dt);
-
             if(s == Status::Running) return Status::Running;
             if(s == Status::Success) return Status::Success;
         }
@@ -146,8 +150,20 @@ struct Selector final : Node{
     }
 };
 
+// MemorySequence - remembers which child was running for this entity.
+struct MemorySequence final : Node{
+    std::vector<Node*> children;
+    int mem_slot = 0;
+
+    MemorySequence(int slot, std::initializer_list<Node*> xs)
+        : children(xs), mem_slot(slot){}
+
+    Status tick(Context& ctx, float dt) const noexcept override;
+};
+
 // Leaf node: either a condition or an action, supplied as a function pointer.
-// We opt for plain function pointer to enforce that leaf nodes are stateless; all behavior state lives in Context
+// Could use std::function or lambdas, but we opt for plain function pointer 
+// to enforce that leaf nodes are stateless; all behavior state lives in Context
 using LeafFn = Status(*)(Context&, float) noexcept;
 
 struct Leaf final : Node{
@@ -159,36 +175,25 @@ struct Leaf final : Node{
 static Vector2 wrap(Vector2 p) noexcept{
     if(p.x < ENTITY_SIZE) p.x += STAGE_WIDTH;
     if(p.y < ENTITY_SIZE) p.y += STAGE_HEIGHT;
-    if(p.x >= STAGE_WIDTH) p.x -= STAGE_WIDTH+ENTITY_SIZE;
-    if(p.y >= STAGE_HEIGHT) p.y -= STAGE_HEIGHT+ENTITY_SIZE;
+    if(p.x >= STAGE_WIDTH) p.x -= STAGE_WIDTH + ENTITY_SIZE;
+    if(p.y >= STAGE_HEIGHT) p.y -= STAGE_HEIGHT + ENTITY_SIZE;
     return p;
-}
-
-static Vector2 constrain(Vector2 p) noexcept{
-    p.x = std::clamp(p.x, 0.0f, to_float(STAGE_WIDTH));
-    p.y = std::clamp(p.y, 0.0f, to_float(STAGE_HEIGHT));    
-    return p;
-}
-
-static Vector2 seek(Vector2 from, Vector2 to, float speed) noexcept{
-    Vector2 d = to - from;
-    //if(Vector2LengthSqr(d) < 0.0001f) return ZERO;
-    return Vector2Normalize(d) * speed;
-}
-
-static Vector2 flee(Vector2 from, Vector2 threat, float speed) noexcept{
-    Vector2 d = from - threat;
-    if(Vector2LengthSqr(d) < 0.0001f) return Vector2Normalize(Vector2{1, 0}) * speed;
-    return Vector2Normalize(d) * speed;
 }
 
 struct World final{
     Vector2 foodPos = {STAGE_WIDTH * 0.25f, STAGE_HEIGHT * 0.5f};
     Vector2 wolfPos = {STAGE_WIDTH * 0.75f, STAGE_HEIGHT * 0.5f};
     bool wolfActive = true;
+    static constexpr float margin = ENTITY_SIZE * 10;
+    std::array<Vector2, 4> waypoints{
+
+        Vector2{margin, margin},
+        Vector2{STAGE_WIDTH - margin, margin},
+        Vector2{STAGE_WIDTH - margin, STAGE_HEIGHT - margin},
+        Vector2{margin, STAGE_HEIGHT - margin}
+    };
 
     void update(float dt) noexcept{
-        // Let the "wolf" orbit to make the threat more dynamic
         static float t = 0.0f;
         t += dt;
         wolfPos.x = (STAGE_WIDTH * 0.5f) + std::cos(t * 0.7f) * (STAGE_WIDTH * 0.28f);
@@ -196,6 +201,10 @@ struct World final{
     }
 
     void render() const noexcept{
+        for(int i = 0; i < 4; ++i){
+            DrawCircleV(waypoints[i], 6.0f, DARKGREEN);
+            DrawText(TextFormat("%d", i), (int) waypoints[i].x + 8, (int) waypoints[i].y - 8, FONT_SIZE, DARKGREEN);
+        }
         DrawCircleV(foodPos, 10.0f, GOLD);
         if(wolfActive) DrawCircleV(wolfPos, 14.0f, RED);
         DrawText("F = toggle wolf", 10, 10, FONT_SIZE, DARKGRAY);
@@ -215,96 +224,124 @@ struct Context final{
     World& world;
 };
 
-// ===========================
+Status MemorySequence::tick(Context& ctx, float dt) const noexcept{
+    int& i = ctx.self.bt_mem[mem_slot];
+
+    while(i < (int) children.size()){
+        const Status s = children[i]->tick(ctx, dt);
+
+        if(s == Status::Running) return Status::Running;
+        if(s == Status::Failure){ i = 0; return Status::Failure; }
+
+        ++i; // child succeeded - advance
+    }
+
+    i = 0;
+    return Status::Success;
+}
+
+//some useful steering behaviors to let entities navigate the world
+static Vector2 steer_seek(const Entity& e, Vector2 targetPos, float max_speed) noexcept{
+    auto toward = Vector2Normalize(targetPos - e.position);
+    auto desired_velocity = toward * max_speed;
+    return (desired_velocity - e.velocity) * Entity::seek_weight;
+}
+
+static Vector2 steer_flee(const Entity& e, Vector2 threatPos, float max_speed) noexcept{
+    Vector2 d = e.position - threatPos;
+    if(Vector2LengthSqr(d) < 0.0001f) d = Vector2{1, 0};
+    auto away = Vector2Normalize(d);
+    auto desired_velocity = away * max_speed;
+    return (desired_velocity - e.velocity) * Entity::flee_weight;
+}
+
+static Vector2 steer_drag(const Entity& e) noexcept{
+    return e.velocity * -Entity::drag;
+}
+
+
 // Demo leaves (conditions/actions)
-// ===========================
 static Status ThreatNearby(Context& ctx, float) noexcept{
     if(!ctx.world.wolfActive) return Status::Failure;
     const float dist = Vector2Distance(ctx.self.position, ctx.world.wolfPos);
     return (dist < 180.0f) ? Status::Success : Status::Failure;
 }
 
-static Status Hungry(Context& ctx, float) noexcept{
-    // Hysteresis: enter hungry at 0.65, exit hungry at 0.45
-    if(!ctx.self.isHungry && ctx.self.hunger > 0.65f) ctx.self.isHungry = true;
-    if(ctx.self.isHungry && ctx.self.hunger < 0.45f) ctx.self.isHungry = false;
-    return ctx.self.isHungry ? Status::Success : Status::Failure;
-}
-
 static Status DoFlee(Context& ctx, float) noexcept{
     ctx.self.debug_state = "FLEE";
-    ctx.self.velocity = flee(ctx.self.position, ctx.world.wolfPos, Entity::MAX_SPEED);    
+    ctx.self.acceleration = ZERO;
+    ctx.self.acceleration += steer_flee(ctx.self, ctx.world.wolfPos, Entity::MAX_SPEED);
+    ctx.self.acceleration += steer_drag(ctx.self);
     return Status::Running;
 }
 
-static Status DoSeekFood(Context& ctx, float) noexcept{
-    ctx.self.debug_state = "SEEK FOOD";
-    ctx.self.velocity = seek(ctx.self.position, ctx.world.foodPos, Entity::MAX_SPEED * 0.7f);
+static Status MoveToCorner(Context& ctx, float) noexcept{
+    ctx.self.debug_state = "PATROL";
+    const Vector2 target = ctx.world.waypoints[ctx.self.waypoint_index];
+    const float dist = Vector2Distance(ctx.self.position, target);
 
-    const float dist = Vector2Distance(ctx.self.position, ctx.world.foodPos);
-    if(dist < 16.0f){
-        ctx.self.hunger = 0.0f;      // ate - now full
-        ctx.self.isHungry = false;   // optional: immediate exit
+    ctx.self.acceleration = ZERO;
+    ctx.self.acceleration += steer_seek(ctx.self, target, Entity::MAX_SPEED * 0.65f);
+    ctx.self.acceleration += steer_drag(ctx.self);
+
+    if(dist <= Entity::waypoint_radius){
         return Status::Success;
     }
     return Status::Running;
 }
 
-static Status DoWander(Context& ctx, float dt) noexcept{    
-    ctx.self.debug_state = "WANDER";
-    auto& entity = ctx.self;
-    
-    Vector2 heading = Vector2Normalize(entity.velocity);
-    Vector2 circle_center = heading * Entity::wander_distance;  // Project a circle in front of the agent
-    entity.wander_angle += unit_range() * Entity::wander_jitter * dt; // Jitter the angle a little bit each tick     
-    Vector2 displacement = { 
-        std::cos(entity.wander_angle) * Entity::wander_radius, // pick a point on the circle
-        std::sin(entity.wander_angle) * Entity::wander_radius
-    };    
-    Vector2 target = entity.position + circle_center + displacement; // The wander target in world space
-    auto toward = Vector2Normalize(target - entity.position);
-    auto desired_velocity = toward * Entity::MIN_SPEED;
-    ctx.self.velocity = Vector2Lerp(ctx.self.velocity, desired_velocity, 0.02f);
+static Status AdvanceCorner(Context& ctx, float) noexcept{
+    ctx.self.waypoint_index = (ctx.self.waypoint_index + 1) % 4;
+    return Status::Success;
+}
+
+static Status AlwaysRunning(Context&, float) noexcept{
     return Status::Running;
 }
 
 struct DemoTree final{
-    // Nodes live here so pointers stay valid (no heap, no ownership headaches).
     Leaf threat{ThreatNearby};
-    Leaf hungry{Hungry};
     Leaf flee{DoFlee};
-    Leaf seekFood{DoSeekFood};
-    Leaf wander{DoWander};
+
+    Leaf moveToCorner{MoveToCorner};
+    Leaf advanceCorner{AdvanceCorner};
+    Leaf runForever{AlwaysRunning};
 
     Sequence fleeSeq{&threat, &flee};
-    Sequence foodSeq{&hungry, &seekFood};
-    Selector root{&fleeSeq, &foodSeq, &wander};
+
+    MemorySequence patrolSeq{0, {&moveToCorner, &advanceCorner, &runForever}};
+
+    Selector root{&patrolSeq};
 
     EntityBrain brain{&root};
 };
 
-//free function update, to avoid circular dependency problems 
+// free function update, to avoid circular dependency problems
 static void update_entity(Entity& e, DemoTree& tree, World& world, float dt) noexcept{
     Context ctx{e, world};
-    constexpr float hunger_per_second = 0.08f; // ~12s from full to starving
-    e.hunger = std::clamp(e.hunger + hunger_per_second * dt, 0.0f, 1.0f);
+    // Tick behavior tree
     std::ignore = tree.brain.tick(ctx, dt);
+
+    // Boids-style integration (steering -> velocity -> position)
+    e.velocity += e.acceleration * dt;
+    e.velocity = Vector2ClampValue(e.velocity, Entity::MIN_SPEED, Entity::MAX_SPEED);
     e.position += e.velocity * dt;
-    e.position = wrap(e.position);  
+    e.position = wrap(e.position);    
+    e.acceleration = ZERO; // clear for next tick to force leaves to set it
 }
 
 struct Window final{
     Window(int width, int height, std::string_view title, int fps = 0){
         InitWindow(width, height, title.data());
-		if(!IsWindowReady()){
-			throw std::runtime_error("Unable to create Raylib window. Check settings?");
-		}
-		if(fps < 1){
-			int hz = GetMonitorRefreshRate(GetCurrentMonitor());
-			SetTargetFPS(hz > 0 ? hz : 60); // default to 60 FPS if monitor refresh rate is unknown
-		} else{
-			SetTargetFPS(fps);
-		}
+        if(!IsWindowReady()){
+            throw std::runtime_error("Unable to create Raylib window. Check settings?");
+        }
+        if(fps < 1){
+            int hz = GetMonitorRefreshRate(GetCurrentMonitor());
+            SetTargetFPS(hz > 0 ? hz : 60);
+        } else{
+            SetTargetFPS(fps);
+        }
     }
     ~Window() noexcept{
         CloseWindow();
@@ -312,20 +349,18 @@ struct Window final{
 
     void render(const World& world, std::span<const Entity> entities) const noexcept{
         BeginDrawing();
-        ClearBackground(CLEAR_COLOR);  
+        ClearBackground(CLEAR_COLOR);
         world.render();
         for(const auto& e : entities){
-            e.render(); 
+            e.render();
             Vector2 p = {e.position.x + 10.0f, e.position.y + 10.0f};
-            DrawText(TextFormat("Mode: %s", e.debug_state.data()), p.x, p.y, FONT_SIZE, DARKGRAY);
-            const float w = 40.0f;
-            const float h = 6.0f;
-            p.y += FONT_SIZE;
-            DrawRectangleV(p, {w, h}, DARKGRAY);
-            DrawRectangleV(p, {w * e.hunger, h}, ORANGE);
-        }     
+            DrawText(TextFormat("Mode: %s", e.debug_state.data()), (int) p.x, (int) p.y, FONT_SIZE, DARKGRAY);
+            DrawText(TextFormat("WP: %d", e.waypoint_index), (int) p.x, (int) p.y + FONT_SIZE, FONT_SIZE, DARKGRAY);
+            DrawText(TextFormat("mem0: %d", e.bt_mem[0]), (int) p.x, (int) p.y + 2 * FONT_SIZE, FONT_SIZE, DARKGRAY);
+            DrawLineV(e.position, world.waypoints[e.waypoint_index], Fade(DARKGREEN, 0.4f));
+        }
         DrawText("Press SPACE to pause/unpause", 10, STAGE_HEIGHT - FONT_SIZE, FONT_SIZE, DARKGRAY);
-        DrawFPS(10, STAGE_HEIGHT - FONT_SIZE * 2);        
+        DrawFPS(10, STAGE_HEIGHT - FONT_SIZE * 2);
         EndDrawing();
     }
 
@@ -335,11 +370,12 @@ struct Window final{
 };
 
 int main(){
-    auto window = Window(STAGE_WIDTH, STAGE_HEIGHT, "Behavior Tree Demo");    
+    auto window = Window(STAGE_WIDTH, STAGE_HEIGHT, "Behavior Tree Demo - Patrol Corners");
     bool isPaused = false;
-    std::vector<Entity> entities(8);
+    std::vector<Entity> entities(2);
     World world;
     DemoTree tree;
+
     while(!window.should_close()){
         float deltaTime = GetFrameTime();
         if(IsKeyPressed(KEY_SPACE)) isPaused = !isPaused;
