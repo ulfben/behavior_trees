@@ -11,7 +11,7 @@ struct Entity final{
 
     // patrol mission
     int waypoint_index = GetRandomValue(0, 3);
-    static constexpr float waypoint_radius = 18.0f;
+    
     std::array<int, 8> bt_mem{};
 
     // hunger mission
@@ -23,6 +23,15 @@ struct Entity final{
     Vector2 acceleration = ZERO;
     Vector2 velocity = vector_from_angle(random_range(0.0f, 2.0f * PI), min_speed);
 
+    void update(float dt) noexcept{
+        hunger = std::clamp(hunger + hunger_per_second * dt, 0.0f, 1.0f);
+        velocity += acceleration * dt;
+        velocity = Vector2ClampValue(velocity, min_speed, max_speed);
+        position += velocity * dt;
+        position = wrap(position);
+        acceleration = ZERO;        
+    }
+
     void render() const noexcept{
         Vector2 local_x = (Vector2Length(velocity) != 0) ? Vector2Normalize(velocity) : Vector2{1, 0};
         Vector2 local_y = {-local_x.y, local_x.x};
@@ -31,6 +40,7 @@ struct Entity final{
         Vector2 tip = position + (local_x * L * 1.4f);
         Vector2 left = position - (local_x * L) + (local_y * H);
         Vector2 right = position - (local_x * L) - (local_y * H);
-        DrawTriangle(tip, right, left, GREEN);
+        auto alpha = 1.0f - hunger * 0.7f;
+        DrawTriangle(tip, right, left, Fade(GREEN, alpha));
     }
 };

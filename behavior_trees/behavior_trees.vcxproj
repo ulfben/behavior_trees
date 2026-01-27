@@ -195,7 +195,9 @@
     <ClInclude Include="src\behavior-tree.hpp" />
     <ClInclude Include="src\common.hpp" />
     <ClInclude Include="src\entity.hpp" />
+    <ClInclude Include="src\game-ai.hpp" />
     <ClInclude Include="src\steering.hpp" />
+    <ClInclude Include="src\window.hpp" />
     <ClInclude Include="src\world.hpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
