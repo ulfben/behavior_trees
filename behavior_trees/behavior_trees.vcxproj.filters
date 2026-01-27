@@ -32,5 +32,8 @@
     <ClInclude Include="src\steering.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="src\behavior-tree.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
