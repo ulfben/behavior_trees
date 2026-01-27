@@ -193,6 +193,8 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\common.hpp" />
+    <ClInclude Include="src\entity.hpp" />
+    <ClInclude Include="src\world.hpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

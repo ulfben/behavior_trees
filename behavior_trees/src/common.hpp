@@ -33,6 +33,10 @@ static constexpr float to_float(int value) noexcept{
     return static_cast<float>(value);
 }
 
+static constexpr int to_int(float value) noexcept{
+    return static_cast<int>(value);
+}
+
 inline float range01() noexcept{
     constexpr int resolution = 32767;
     const auto r = GetRandomValue(0, resolution);
@@ -51,6 +55,11 @@ static Vector2 random_range(const Vector2& min, const Vector2& max) noexcept{
 static Vector2 vector_from_angle(float angle, float magnitude) noexcept{
     return {std::cos(angle) * magnitude, std::sin(angle) * magnitude};
 }
+
+static void DrawText(const char* s, float x, float y, int size, Color color) noexcept{
+    DrawText(s, to_int(x), to_int(y), size, color);
+}
+
 
 static constexpr Vector2 wrap(Vector2 p) noexcept{
     if(p.x < ENTITY_SIZE) p.x += STAGE_WIDTH;

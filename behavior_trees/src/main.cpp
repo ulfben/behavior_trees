@@ -7,46 +7,8 @@
  * Copyright (c) 2026, Ulf Benjaminsson
  */
 #include "common.hpp"
-
-struct Entity final{
-	static constexpr float MIN_SPEED = 24.0f;
-	static constexpr float MAX_SPEED = 200.0f;
-	static constexpr float hunger_per_second = 0.04f;
-	static constexpr float drag = 0.01f;
-	static constexpr float seek_weight = 1.0f;
-	static constexpr float flee_weight = 1.2f;
-	static constexpr float wander_weight = 1.0f;
-	static constexpr float wander_radius = 60.0f;
-	static constexpr float wander_distance = 80.0f;
-	static constexpr float wander_jitter = 4.0f;   // radians/sec-ish when multiplied by dt
-
-	// patrol mission
-	int waypoint_index = GetRandomValue(0, 3);
-	static constexpr float waypoint_radius = 18.0f;
-	std::array<int, 8> bt_mem{}; // Behavior-tree memory (one slot is enough for this demo)
-
-	//hunger mission: 
-	float hunger = random_range(0.0f, 1.0f); // 0 = full, 1 = starving
-	bool isHungry = false;
-
-	std::string_view debug_state = "None";
-	float wander_angle = random_range(0.0f, 2.0f * PI);
-	Vector2 position = random_range(ZERO, STAGE_SIZE);
-	Vector2 acceleration = ZERO;
-	Vector2 velocity = vector_from_angle(wander_angle, MIN_SPEED);
-
-
-	void render() const noexcept{
-		Vector2 local_x = (Vector2Length(velocity) != 0) ? Vector2Normalize(velocity) : Vector2{1, 0};
-		Vector2 local_y = {-local_x.y, local_x.x};
-		float L = ENTITY_SIZE;
-		float H = ENTITY_SIZE;
-		Vector2 tip = position + (local_x * L * 1.4f);
-		Vector2 left = position - (local_x * L) + (local_y * H);
-		Vector2 right = position - (local_x * L) - (local_y * H);
-		DrawTriangle(tip, right, left, GREEN);	
-	}
-};
+#include "entity.hpp"
+#include "world.hpp"
 
 enum class Status{ Success, Failure, Running };
 
@@ -126,36 +88,7 @@ struct Leaf final : Node{
 	Status tick(Context& ctx, float dt) const noexcept override{ return fn(ctx, dt); }
 };
 
-struct World final{
-	Vector2 foodPos = {STAGE_WIDTH * 0.25f, STAGE_HEIGHT * 0.5f};
-	Vector2 wolfPos = {STAGE_WIDTH * 0.75f, STAGE_HEIGHT * 0.5f};
-	bool wolfActive = true;
-	static constexpr float margin = ENTITY_SIZE * 10;
-	std::array<Vector2, 4> waypoints{
 
-		Vector2{margin, margin},
-		Vector2{STAGE_WIDTH - margin, margin},
-		Vector2{STAGE_WIDTH - margin, STAGE_HEIGHT - margin},
-		Vector2{margin, STAGE_HEIGHT - margin}
-	};
-
-	void update(float dt) noexcept{
-		static float t = 0.0f;
-		t += dt;
-		wolfPos.x = (STAGE_WIDTH * 0.5f) + std::cos(t * 0.7f) * (STAGE_WIDTH * 0.28f);
-		wolfPos.y = (STAGE_HEIGHT * 0.5f) + std::sin(t * 1.1f) * (STAGE_HEIGHT * 0.22f);
-	}
-
-	void render() const noexcept{
-		for(int i = 0; i < 4; ++i){
-			DrawCircleV(waypoints[i], 6.0f, DARKGREEN);
-			DrawText(TextFormat("%d", i), (int) waypoints[i].x + 8, (int) waypoints[i].y - 8, FONT_SIZE, DARKGREEN);
-		}
-		DrawCircleV(foodPos, 10.0f, GOLD);
-		if(wolfActive) DrawCircleV(wolfPos, 14.0f, RED);
-		DrawText("F = toggle wolf", 10, 10, FONT_SIZE, DARKGRAY);
-	}
-};
 
 struct EntityBrain final{
 	Node* root = nullptr;
@@ -225,7 +158,7 @@ static Status CheckHunger(Context& ctx, float) noexcept{
 
 static Status DoFlee(Context& ctx, float) noexcept{
 	ctx.self.debug_state = "FLEE";	
-	ctx.self.acceleration += steer_flee(ctx.self, ctx.world.wolfPos, Entity::MAX_SPEED);
+	ctx.self.acceleration += steer_flee(ctx.self, ctx.world.wolfPos, Entity::max_speed);
 	ctx.self.acceleration += steer_drag(ctx.self);
 	return Status::Running;
 }
@@ -236,7 +169,7 @@ static Status MoveToCorner(Context& ctx, float) noexcept{
 	const float dist = Vector2Distance(ctx.self.position, target);
 
 	ctx.self.acceleration = ZERO;
-	ctx.self.acceleration += steer_seek(ctx.self, target, Entity::MAX_SPEED * 0.65f);
+	ctx.self.acceleration += steer_seek(ctx.self, target, Entity::max_speed * 0.65f);
 	ctx.self.acceleration += steer_drag(ctx.self);
 
 	if(dist <= Entity::waypoint_radius){
@@ -253,7 +186,7 @@ static Status AdvanceCorner(Context& ctx, float) noexcept{
 static Status DoSeekFood(Context& ctx, float) noexcept{
 	ctx.self.debug_state = "SEEK FOOD";	
 	ctx.self.acceleration = ZERO;
-	ctx.self.acceleration += steer_seek(ctx.self, ctx.world.foodPos, Entity::MAX_SPEED * 0.7f);
+	ctx.self.acceleration += steer_seek(ctx.self, ctx.world.foodPos, Entity::max_speed * 0.7f);
 	ctx.self.acceleration += steer_drag(ctx.self);
 	const float dist = Vector2Distance(ctx.self.position, ctx.world.foodPos);
 	if(dist < 16.0f){
@@ -299,7 +232,7 @@ static void update_entity(Entity& e, DemoTree& tree, World& world, float dt) noe
 
 	// Boids-style integration (steering -> velocity -> position)
 	e.velocity += e.acceleration * dt;
-	e.velocity = Vector2ClampValue(e.velocity, Entity::MIN_SPEED, Entity::MAX_SPEED);
+	e.velocity = Vector2ClampValue(e.velocity, Entity::min_speed, Entity::max_speed);
 	e.position += e.velocity * dt;
 	e.position = wrap(e.position);
 	e.acceleration = ZERO; // clear for next tick to force leaves to set it
