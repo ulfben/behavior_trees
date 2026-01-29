@@ -42,7 +42,7 @@ struct Selector final : Node{
     std::vector<Node*> children;
     explicit Selector(std::initializer_list<Node*> xs) : children(xs){}
 
-    Status tick(Context& ctx, float dt) const noexcept override{
+    Status tick(Context& ctx, float dt) const noexcept override{        
         for(const auto* child : children){
             const Status s = child->tick(ctx, dt);
             if(s == Status::Running) return Status::Running;
@@ -62,7 +62,8 @@ struct MemorySequence final : Node{
         : children(xs), mem_slot(slot){}
 
     Status tick(Context& ctx, float dt) const noexcept override{
-        int& i = ctx.self.bt_mem[mem_slot];
+        assert(mem_slot < ctx.self.bt_mem.size());
+        int& i = ctx.self.bt_mem[mem_slot]; //grab a reference to the entity's memory of this behavior
         while(i < (int) children.size()){
             const Status s = children[i]->tick(ctx, dt);
             if(s == Status::Running){

@@ -10,8 +10,7 @@ struct Entity final{
     static constexpr float flee_weight = 1.2f;
 
     // patrol mission
-    int waypoint_index = GetRandomValue(0, 3);
-    
+    int waypoint_index = GetRandomValue(0, 3);    
     std::array<int, 8> bt_mem{};
 
     // hunger mission

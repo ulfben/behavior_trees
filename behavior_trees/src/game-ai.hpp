@@ -63,6 +63,7 @@ static Status DoSeekFood(Context& ctx, float) noexcept{
     if(dist < World::food_radius){
         entity.hunger = random_range(0.0f, 0.12f);
         entity.isHungry = false;
+        ctx.world.respawn_food();
         return Status::Success;
     }
     return Status::Running;

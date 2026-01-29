@@ -16,6 +16,7 @@
 #include <array>
 #include <initializer_list>
 #include <tuple>
+#include <limits>
 
 // --- Constants ---
 constexpr int STAGE_WIDTH = 1280;
@@ -24,7 +25,7 @@ constexpr int TARGET_FPS = 60;
 constexpr int FONT_SIZE = 20;
 constexpr Vector2 STAGE_SIZE = {static_cast<float>(STAGE_WIDTH), static_cast<float>(STAGE_HEIGHT)};
 constexpr Vector2 ZERO = {0.0f, 0.0f};
-constexpr auto CLEAR_COLOR = GRAY;
+constexpr auto CLEAR_COLOR = RAYWHITE;
 constexpr float ENTITY_SIZE = 10.0f;
 
 // --- Math Helpers ---
@@ -55,10 +56,36 @@ static Vector2 vector_from_angle(float angle, float magnitude) noexcept{
     return {std::cos(angle) * magnitude, std::sin(angle) * magnitude};
 }
 
+template <typename T>
+static void shuffle(std::span<T> range) noexcept{
+    if(range.size() < 2) return;
+    struct RaylibRng{
+        static constexpr int MAX = 32767;
+        using result_type = int;
+
+        static constexpr result_type min() noexcept{
+            return 0;
+        }
+
+        static constexpr result_type max() noexcept{
+            return MAX;
+        }
+
+        result_type operator()() noexcept{ // Raylib returns inclusive range            
+            return static_cast<result_type>(GetRandomValue(min(), max()));
+        }
+    };
+
+    std::shuffle(range.begin(), range.end(), RaylibRng());
+}
+
+
+template <typename T>
+void shuffle(std::span<const T>) = delete;
+
 static void DrawText(const char* s, float x, float y, int size, Color color) noexcept{
     DrawText(s, to_int(x), to_int(y), size, color);
 }
-
 
 static constexpr Vector2 wrap(Vector2 p) noexcept{
     if(p.x < ENTITY_SIZE) p.x += STAGE_WIDTH;

@@ -14,7 +14,7 @@
 #include "behavior-tree.hpp"
 #include "game-ai.hpp"
 
-static void update(World& world, DemoTree& tree, std::span<Entity> entities, float dt) noexcept{
+static void update(World& world, const DemoTree& tree, std::span<Entity> entities, float dt) noexcept{
 	world.update(dt);
 	for(auto& e : entities){
 		Context ctx{e, world};
@@ -46,13 +46,17 @@ static void render(const World& world, std::span<const Entity> entities) noexcep
 int main(){
 	auto window = Window(STAGE_WIDTH, STAGE_HEIGHT, "Behavior Tree Demo");
 	bool isPaused = false;
-	std::vector<Entity> entities(3);
+	std::vector<Entity> entities(1);
 	World world;
 	DemoTree tree;
 	while(!window.should_close()){
-		float deltaTime = GetFrameTime();
-		if(IsKeyPressed(KEY_SPACE)) isPaused = !isPaused;
-		if(IsKeyPressed(KEY_F)) world.wolf_active = !world.wolf_active;
+		float deltaTime = GetFrameTime();		
+		if(IsKeyPressed(KEY_SPACE)){ 
+			isPaused = !isPaused; 
+		}
+		if(IsKeyPressed(KEY_F)){ 
+			world.wolf_active = !world.wolf_active; 
+		}
 		if(!isPaused){
 			update(world, tree, entities, deltaTime);
 		}

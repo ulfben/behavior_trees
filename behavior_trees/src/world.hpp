@@ -2,19 +2,24 @@
 #include "common.hpp"
 
 struct World final{
+    static constexpr float margin = ENTITY_SIZE * 10;
     static constexpr float waypoint_radius = 18.0f;
     static constexpr float food_radius = 16.0f;
 
     Vector2 food_pos = {STAGE_WIDTH * 0.25f, STAGE_HEIGHT * 0.5f};
     Vector2 wolf_pos = {STAGE_WIDTH * 0.75f, STAGE_HEIGHT * 0.5f};
     bool wolf_active = true;
-    static constexpr float margin = ENTITY_SIZE * 10;
+    
     std::array<Vector2, 4> waypoints{
         Vector2{margin, margin},
         Vector2{STAGE_WIDTH - margin, margin},
         Vector2{STAGE_WIDTH - margin, STAGE_HEIGHT - margin},
         Vector2{margin, STAGE_HEIGHT - margin}
     };
+
+    void respawn_food() noexcept{
+        food_pos = random_range(ZERO, STAGE_SIZE);
+    }        
 
     void update(float dt) noexcept{
         if(!wolf_active){ return; }
