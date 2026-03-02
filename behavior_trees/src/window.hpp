@@ -1,6 +1,16 @@
 #pragma once
 #include "common.hpp"
 
+struct DrawScopeGuard final{
+	DrawScopeGuard(Color clear) noexcept{
+		BeginDrawing();
+		ClearBackground(clear);
+	}
+	~DrawScopeGuard() noexcept{
+		EndDrawing();
+	}
+};
+
 struct Window final{
 	Window(int width, int height, std::string_view title, int fps = 0){
 		InitWindow(width, height, title.data());

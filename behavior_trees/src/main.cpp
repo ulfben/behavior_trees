@@ -24,8 +24,7 @@ static void update(World& world, const DemoTree& tree, std::span<Entity> entitie
 }
 
 static void render(const World& world, std::span<const Entity> entities) noexcept{
-	BeginDrawing();
-	ClearBackground(CLEAR_COLOR);
+	auto frame = DrawScopeGuard(CLEAR_COLOR);
 	world.render();
 	for(const auto& e : entities){
 		e.render();
@@ -39,14 +38,13 @@ static void render(const World& world, std::span<const Entity> entities) noexcep
 		}
 	}
 	DrawText("Press SPACE to pause/unpause", 10, STAGE_HEIGHT - FONT_SIZE, FONT_SIZE, DARKGRAY);
-	DrawFPS(10, STAGE_HEIGHT - FONT_SIZE * 2);
-	EndDrawing();
+	DrawFPS(10, STAGE_HEIGHT - FONT_SIZE * 2);	
 }
 
 int main(){
 	auto window = Window(STAGE_WIDTH, STAGE_HEIGHT, "Behavior Tree Demo");
 	bool isPaused = false;
-	std::vector<Entity> entities(1);
+	std::vector<Entity> entities(4);
 	World world;
 	DemoTree tree;
 	while(!window.should_close()){
