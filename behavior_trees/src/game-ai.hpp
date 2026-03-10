@@ -71,9 +71,21 @@ static Status DoSeekFood(Context& ctx, float) noexcept{
     return Status::Running;
 }
 
+//in-workshop updates
+static Status StandStill(Context& ctx, float dt) noexcept{
+    //if(GetRandomValue(0, 3) != 0){
+    //    return Status::Failure;   // most of the time, don't stand still
+    //}
+    ctx.self.velocity = {0,0};
+    ctx.self.debug_state = "STAND STILL";
+    return Status::Running;
+}
+
 //let's assemble a behavior tree :D 
 
 struct DemoTree final{
+    Leaf stand_still{StandStill,"StandStill"sv};
+
     // threat branch
     Leaf threat{ThreatNearby, "Is Threat Nearby?"sv};
     Leaf flee{DoFlee, "Flee"sv};
@@ -91,6 +103,6 @@ struct DemoTree final{
     RepeatForever patrolLoop{&patrolSeq, "Patrol"sv};     
 
     //this brain can: avoid threats, patrol waypoints, and find food when hungry.
-    Selector root{{&fleeSeq, &foodSeq, &patrolLoop}, "DemoTree Root"sv};
+    Selector root{{&fleeSeq, &foodSeq, &stand_still, &patrolLoop}, "DemoTree Root"sv};
     EntityBrain brain{&root};
 };
