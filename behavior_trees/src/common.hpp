@@ -17,7 +17,7 @@
 #include <initializer_list>
 #include <tuple>
 #include <limits>
-
+using namespace std::string_view_literals;
 // --- Constants ---
 constexpr int STAGE_WIDTH = 1280;
 constexpr int STAGE_HEIGHT = 720;

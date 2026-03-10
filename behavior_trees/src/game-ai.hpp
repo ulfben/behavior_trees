@@ -1,6 +1,7 @@
 #pragma once
 #include "behavior-tree.hpp"
 #include "steering.hpp"
+using namespace std::string_view_literals;
 
 // --- Leaf Functions ---
 // these are either conditions for the entity to check, or actions it needs to take
@@ -24,7 +25,7 @@ static Status CheckHunger(Context& ctx, float) noexcept{
 
 static Status DoFlee(Context& ctx, float) noexcept{
     auto& entity = ctx.self;
-    entity.debug_state = "FLEE";
+    entity.debug_state = "FLEE"sv;
     entity.acceleration += steer_flee(entity, ctx.world.wolf_pos, Entity::max_speed);
     entity.acceleration += steer_drag(entity);
     return Status::Running;
@@ -32,7 +33,7 @@ static Status DoFlee(Context& ctx, float) noexcept{
 
 static Status MoveToCorner(Context& ctx, float) noexcept{
     auto& entity = ctx.self;
-    entity.debug_state = "PATROL";
+    entity.debug_state = "PATROL"sv;
     const Vector2 target = ctx.world.waypoints[entity.waypoint_index];
     const float dist = Vector2Distance(entity.position, target);
 
@@ -55,7 +56,7 @@ static Status AdvanceCorner(Context& ctx, float) noexcept{
 
 static Status DoSeekFood(Context& ctx, float) noexcept{
     auto& entity = ctx.self;
-    entity.debug_state = "SEEK FOOD";
+    entity.debug_state = "SEEK FOOD"sv;
     entity.acceleration = ZERO;
     entity.acceleration += steer_seek(entity, ctx.world.food_pos, Entity::max_speed * 0.7f);
     entity.acceleration += steer_drag(entity);
@@ -73,22 +74,22 @@ static Status DoSeekFood(Context& ctx, float) noexcept{
 
 struct DemoTree final{
     // threat branch
-    Leaf threat{ThreatNearby};
-    Leaf flee{DoFlee};
-    Sequence fleeSeq{&threat, &flee};
-
-    // patrol branch
-    Leaf moveToCorner{MoveToCorner};
-    Leaf advanceCorner{AdvanceCorner};
-    MemorySequence patrolSeq{0, {&moveToCorner, &advanceCorner}};
-    RepeatForever patrolLoop{&patrolSeq};
+    Leaf threat{ThreatNearby, "Is Threat Nearby?"sv};
+    Leaf flee{DoFlee, "Flee"sv};
+    Sequence fleeSeq{{ &threat, &flee }, "Flee Threat"sv};
 
     // hunger branch
-    Leaf hungry{CheckHunger};
-    Leaf seekFood{DoSeekFood};
-    Sequence foodSeq{&hungry, &seekFood};
+    Leaf hungry{CheckHunger, "Are we hungry?"sv};
+    Leaf seekFood{DoSeekFood, "Seek Food"sv};
+    Sequence foodSeq{{&hungry, &seekFood}, "Find Food"sv};
+    
+    // patrol branch
+    Leaf moveToCorner{MoveToCorner, "Move To Waypoint"sv};
+    Leaf advanceCorner{AdvanceCorner, "Pick Next Waypoint"sv};
+    MemorySequence patrolSeq{0, {&moveToCorner, &advanceCorner}, "Patrol Waypoints"sv};
+    RepeatForever patrolLoop{&patrolSeq, "Patrol"sv};     
 
     //this brain can: avoid threats, patrol waypoints, and find food when hungry.
-    Selector root{&fleeSeq, &foodSeq, &patrolLoop};
+    Selector root{{&fleeSeq, &foodSeq, &patrolLoop}, "DemoTree Root"sv};
     EntityBrain brain{&root};
 };

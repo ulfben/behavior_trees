@@ -22,7 +22,11 @@ struct Node{
 // IF a child runs, the sequence returns Running (and restarts from 0 next frame).
 struct Sequence final : Node{
     std::vector<Node*> children;
+    std::string_view name; //for debugging
+
     explicit Sequence(std::initializer_list<Node*> xs) : children(xs){}
+    Sequence(std::initializer_list<Node*> xs, std::string_view _name) 
+        : children(xs), name(_name){}
 
     Status tick(Context& ctx, float dt) const noexcept override{
         for(const auto* child : children){
@@ -40,7 +44,11 @@ struct Sequence final : Node{
 // IF a child runs, the selector returns Running.
 struct Selector final : Node{
     std::vector<Node*> children;
+    std::string_view name; //for debugging
+
     explicit Selector(std::initializer_list<Node*> xs) : children(xs){}
+    Selector(std::initializer_list<Node*> xs, std::string_view _name) 
+        : children(xs), name(_name){}
 
     Status tick(Context& ctx, float dt) const noexcept override{        
         for(const auto* child : children){
@@ -53,13 +61,16 @@ struct Selector final : Node{
 };
 
 // Composite: MemorySequence
-// remembers which child was running for this entity.
+// remembers progress inside a multi-step task, like walking between waypoints in order
 struct MemorySequence final : Node{
     std::vector<Node*> children;
     int mem_slot = 0;
+    std::string_view name; //for debugging
 
     MemorySequence(int slot, std::initializer_list<Node*> xs)
         : children(xs), mem_slot(slot){}
+    MemorySequence(int slot, std::initializer_list<Node*> xs, std::string_view _name) 
+        : children(xs), mem_slot(slot), name(_name){}
 
     Status tick(Context& ctx, float dt) const noexcept override{
         assert(mem_slot < ctx.self.bt_mem.size());
@@ -80,9 +91,13 @@ struct MemorySequence final : Node{
     }   
 };
 
+//useful for "keep doing this unless something higher priority interrupts"
 struct RepeatForever final : Node{
     Node* child{};
+    std::string_view name; //for debugging        
+
     explicit RepeatForever(Node* c) : child(c){}
+    RepeatForever(Node* c, std::string_view _name) : child(c), name(_name){}
 
     Status tick(Context& ctx, float dt) const noexcept override{
         std::ignore = child->tick(ctx, dt);
@@ -93,11 +108,17 @@ struct RepeatForever final : Node{
 // Leaf node: either a condition or an action, supplied as a function pointer.
 // Could use std::function or lambdas, but we opt for plain function pointer 
 // to enforce that leaf nodes are stateless; all behavior state lives in Context
+// The leaf nodes are the ones what actually interacts with the world
 using LeafFn = Status(*)(Context&, float) noexcept;
 
 struct Leaf final : Node{
     LeafFn fn{};
+    std::string_view name; //for debugging     
+
     explicit Leaf(LeafFn f) : fn(f){}
+    Leaf(LeafFn f, std::string_view _name) 
+        : fn(f), name(_name){}
+
     Status tick(Context& ctx, float dt) const noexcept override{ return fn(ctx, dt); }
 };
 
