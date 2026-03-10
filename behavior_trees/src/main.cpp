@@ -42,18 +42,18 @@ static void render(const World& world, std::span<const Entity> entities) noexcep
 	for(const auto& e : entities){
 		e.render();
 		Vector2 p = {e.position.x + 10.0f, e.position.y + 10.0f};
-		DrawText(TextFormat("Mode: %s", e.debug_state.data()), p.x, p.y, FONT_SIZE, DARKGRAY);		
+		DrawText(TextFormat("Mode: %s", e.debug_state.data()), p.x, p.y, FONT_SIZE, DARKGRAY);
+		
 		if(e.debug_state == "SEEK FOOD"){
 			DrawLineV(e.position, world.food_pos, Fade(DARKGREEN, 0.5f));
 		} else if(e.debug_state == "PATROL"){
 			DrawText(TextFormat("WP: %d", e.waypoint_index), p.x, p.y + FONT_SIZE, FONT_SIZE, DARKGRAY);
 			DrawLineV(e.position, world.waypoints[e.waypoint_index], Fade(DARKGREEN, 0.5f));
 		}
-		if(!entities.empty()){
-			draw_behavior_tree(entities.front().debug_trace);
-		}
 	}
-
+	if(!entities.empty()){
+		draw_behavior_tree(entities.front().debug_trace);
+	}
 	DrawText("Press SPACE to pause/unpause", 10, STAGE_HEIGHT - FONT_SIZE, FONT_SIZE, DARKGRAY);
 	DrawFPS(10, STAGE_HEIGHT - FONT_SIZE * 2);	
 }

@@ -10,10 +10,9 @@ Before the workshop, you are expected to have read the assigned chapter on Behav
 
 AI For Games, 3rd Edition, Chapter 5
 
-
 Your task during the workshop is to observe, trace, and reason about how the AI actually behaves, based on running code - not diagrams or theory.
 
-The goal is to build a correct mental model of how this AI works over time, and to compare that model to how Behavior Trees are commonly described in the literature.
+The goal is to build a correct mental model of how this AI works over time.
 
 ## Source Structure
 * **`common.hpp`**
@@ -48,7 +47,8 @@ The goal is to build a correct mental model of how this AI works over time, and 
 
 1.  Clone the repository, build, and run the application.
 2.  Run the program in a debugger.
-3.  Step through execution frame-by-frame and follow how `tick()` propagates through the tree.
+3.  Step through execution frame-by-frame and follow how `tick()` propagates through the tree. *The instructor will demonstrate this process for the class.*
+
 
 **Observe:**
 * Which nodes are evaluated every frame?
@@ -57,53 +57,77 @@ The goal is to build a correct mental model of how this AI works over time, and 
 
 *You are encouraged to add temporary debug output (logging, breakpoints, overlays) to help you understand what is happening.*
 
-### 2. Create an execution diagram
+### 2. Draw the Demo Tree
 
-Create a visual diagram that shows how the AI behaves over time. Your diagram should include:
+Create a visual diagram on the whiteboard that shows the logical structure of the demo Behavior Tree.
 
-* The order in which nodes are ticked.
-* Where and why execution stops each frame.
-* Which node is “in control” during each behavior.
+The diagram should show:
 
-*The diagram does not need to match textbook diagrams. Any clear format is acceptable (hand-drawn, digital, ASCII, etc.).*
+- the root node
+- the main branches
+- the type of each node
 
-### 3. Compare implementation to the literature
+Take inspiration by the diagrams in your course literature for how to structure this.
 
-Identify and describe at least two ways in which this implementation differs from how Behavior Trees are presented in the literature. Examples might include:
+### 3. Change branch priority
 
-* How often nodes are re-evaluated.
-* How long-running actions are represented.
-* Where and how state is stored.
+The demo tree uses a `root` selector node.
 
-*Focus on behavior and execution, not naming or API differences.*
+Edit the selector; move the patrol branch in front of the other branches.
 
-### 4. Add a new behavior: free wandering after patrol
+Run the demo again and observe what changes.
 
-Extend the AI so that:
+Answer:
+- Which behavior now takes priority?
+- What behavior stops happening?
+- Why does changing branch order matter in a selector?
 
-1.  After visiting all four waypoints, the agent stops patrolling.
-2.  Instead, it wanders freely around the map.
+### 4. Add a new simple action: `StandStill`
 
-**The new behavior must:**
-* Integrate into the existing Behavior Tree structure.
-* Not break existing behaviors (fleeing, hunger, etc.).
+Implement a new leaf node called `StandStill`.
 
-*There is no single correct solution—justify your design choices.*
+The behavior:
+- the entity stops moving
+- velocity becomes zero
+- the debug state should show that the entity is standing still
 
-### 5. Add a new behavior: reversed patrol when caught
+Add the new node to the Behavior Tree so that it can be selected when appropriate.
 
-Extend the AI so that:
+Important:
+`StandStill` should not break fleeing or food-seeking behavior. Think carefully about where in the root selector it belongs, and what it should return.
 
-1.  If the agent is caught by the wolf, it continues patrolling.
-2.  But visits the waypoints in **reverse order**.
+### 5. Optional challenge - Reverse patrol
 
-**You must decide:**
-* Where this state lives.
-* How it affects existing behavior.
+Extend the patrol behavior so that after the entity has visited all waypoints, it continues patrolling in reverse order.
 
-### 6. Add a new behavior: allow the AI to randomly choose a behavior
+This means the entity should:
 
-When the agent is not under attack, it should select either Stand Still, Wander or Patrol at random.
-Once a behavior has been selected, it must be allowed to run for some time. The AI should not oscillate between behaviors on consecutive ticks due to repeated random selection. 
+- visit all waypoints in the normal order
+- then reverse direction
+- continue patrolling through the same waypoints in the opposite order
 
-*Avoid introducing delays, sleeps, or timers—all behavior should still be driven by the Behavior Tree tick.*
+Think about:
+
+- where this state should live
+- how waypoint advancement should change
+- how this interacts with the existing patrol logic
+
+### 6. Optional challenge - Random idle behavior
+
+Extend the Behavior Tree so that when the agent is not under attack and not hungry, it can choose between several low-priority behaviors at random.
+
+Possible idle behaviors include:
+- StandStill
+- Patrol
+- Wander
+- (any other steering behavior you explored in the boids workshop)
+
+The key requirement is that once a behavior has been selected, it should continue running for a while. The AI should not randomly switch to a different behavior on every tick.
+
+Think about how the Behavior Tree can:
+- choose between multiple behaviors
+- remember which behavior is currently active
+- allow that behavior to run until it naturally finishes
+
+Important:
+*Do not introduce delays, sleeps, or external timers. All behavior should still be driven entirely by the Behavior Tree tick() process.*
