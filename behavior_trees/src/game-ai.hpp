@@ -82,8 +82,8 @@ struct DemoTree final{
     // hunger branch
     Leaf hungry{CheckHunger, "Are we hungry?"sv};
     Leaf seekFood{DoSeekFood, "Seek Food"sv};
-    Sequence foodSeq{{&hungry, &seekFood}, "Find Food"sv};
-    
+    Sequence foodSeq{{&hungry, &seekFood}, "Find Food"sv};   
+
     // patrol branch
     Leaf moveToCorner{MoveToCorner, "Move To Waypoint"sv};
     Leaf advanceCorner{AdvanceCorner, "Pick Next Waypoint"sv};
