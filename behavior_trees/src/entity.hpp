@@ -18,6 +18,8 @@ struct Entity final{
     bool isHungry = false;
 
     std::string_view debug_state = "None";    
+    std::vector<std::string_view> debug_trace; //Q&D: keep a copy of the behavior tree execution trace every frame. 
+
     Vector2 position = random_range(ZERO, STAGE_SIZE);
     Vector2 acceleration = ZERO;
     Vector2 velocity = vector_from_angle(random_range(0.0f, 2.0f * PI), min_speed);

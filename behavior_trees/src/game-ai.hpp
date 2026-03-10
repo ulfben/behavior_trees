@@ -5,6 +5,7 @@ using namespace std::string_view_literals;
 
 // --- Leaf Functions ---
 // these are either conditions for the entity to check, or actions it needs to take
+// these functions are how our leaf nodes actually interacts with the world
 static Status ThreatNearby(Context& ctx, float) noexcept{    
     if(!ctx.world.wolf_active) return Status::Failure;
     auto& entity = ctx.self;

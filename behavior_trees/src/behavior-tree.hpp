@@ -8,6 +8,7 @@ enum class Status{ Success, Failure, Running };
 struct Context final{
     Entity& self;
     World& world;
+    std::vector<std::string_view> debug_trace;
 };
 
 // Base node interface
@@ -29,6 +30,7 @@ struct Sequence final : Node{
         : children(xs), name(_name){}
 
     Status tick(Context& ctx, float dt) const noexcept override{
+        ctx.debug_trace.push_back(name);
         for(const auto* child : children){
             const Status s = child->tick(ctx, dt);
             if(s == Status::Running) return Status::Running;
@@ -50,7 +52,8 @@ struct Selector final : Node{
     Selector(std::initializer_list<Node*> xs, std::string_view _name) 
         : children(xs), name(_name){}
 
-    Status tick(Context& ctx, float dt) const noexcept override{        
+    Status tick(Context& ctx, float dt) const noexcept override{ 
+        ctx.debug_trace.push_back(name);
         for(const auto* child : children){
             const Status s = child->tick(ctx, dt);
             if(s == Status::Running) return Status::Running;
@@ -74,6 +77,7 @@ struct MemorySequence final : Node{
 
     Status tick(Context& ctx, float dt) const noexcept override{
         assert(mem_slot < ctx.self.bt_mem.size());
+        ctx.debug_trace.push_back(name);
         int& i = ctx.self.bt_mem[mem_slot]; //grab a reference to the entity's memory of this behavior
         while(i < (int) children.size()){
             const Status s = children[i]->tick(ctx, dt);
@@ -100,6 +104,7 @@ struct RepeatForever final : Node{
     RepeatForever(Node* c, std::string_view _name) : child(c), name(_name){}
 
     Status tick(Context& ctx, float dt) const noexcept override{
+        ctx.debug_trace.push_back(name);
         std::ignore = child->tick(ctx, dt);
         return Status::Running;
     }
@@ -119,13 +124,16 @@ struct Leaf final : Node{
     Leaf(LeafFn f, std::string_view _name) 
         : fn(f), name(_name){}
 
-    Status tick(Context& ctx, float dt) const noexcept override{ return fn(ctx, dt); }
+    Status tick(Context& ctx, float dt) const noexcept override{ 
+        ctx.debug_trace.push_back(name);
+        return fn(ctx, dt); 
+    }
 };
 
 struct EntityBrain final{
     Node* root = nullptr;
     Status tick(Context& ctx, float dt) const noexcept{
-        assert(root);
+        assert(root);        
         return root->tick(ctx, dt);
     }
 };

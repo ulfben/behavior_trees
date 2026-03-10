@@ -14,12 +14,23 @@
 #include "behavior-tree.hpp"
 #include "game-ai.hpp"
 
+static void draw_behavior_tree(std::span<const std::string_view> debug_trace){
+	int y = 160;
+	DrawText("Behavior Tree Trace:", 20, y, 24, BLUE);
+	y += 30;	
+	for(std::string_view name : debug_trace){
+		DrawText(name.data(), 20, y, 20, BLUE);
+		y += 22;
+	}
+}
+
 static void update(World& world, const DemoTree& tree, std::span<Entity> entities, float dt) noexcept{
 	static unsigned frame_count = 0u;	
 	world.update(dt);
 	for(auto& e : entities){
 		Context ctx{e, world};
 		std::ignore = tree.brain.tick(ctx, dt);
+		e.debug_trace = ctx.debug_trace; //Q&D: copy the trace so each entity remember what it did and can render it later. 
 		e.update(dt);
 	}
 	frame_count++;
@@ -31,14 +42,18 @@ static void render(const World& world, std::span<const Entity> entities) noexcep
 	for(const auto& e : entities){
 		e.render();
 		Vector2 p = {e.position.x + 10.0f, e.position.y + 10.0f};
-		DrawText(TextFormat("Mode: %s", e.debug_state.data()), p.x, p.y, FONT_SIZE, DARKGRAY);
+		DrawText(TextFormat("Mode: %s", e.debug_state.data()), p.x, p.y, FONT_SIZE, DARKGRAY);		
 		if(e.debug_state == "SEEK FOOD"){
 			DrawLineV(e.position, world.food_pos, Fade(DARKGREEN, 0.5f));
 		} else if(e.debug_state == "PATROL"){
 			DrawText(TextFormat("WP: %d", e.waypoint_index), p.x, p.y + FONT_SIZE, FONT_SIZE, DARKGRAY);
 			DrawLineV(e.position, world.waypoints[e.waypoint_index], Fade(DARKGREEN, 0.5f));
 		}
+		if(!entities.empty()){
+			draw_behavior_tree(entities.front().debug_trace);
+		}
 	}
+
 	DrawText("Press SPACE to pause/unpause", 10, STAGE_HEIGHT - FONT_SIZE, FONT_SIZE, DARKGRAY);
 	DrawFPS(10, STAGE_HEIGHT - FONT_SIZE * 2);	
 }
