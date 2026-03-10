@@ -1,6 +1,8 @@
 # Behavior Trees Demo
 Demo code for my workshop on Behavior Trees in games.
 
+![Screen capture of the behavior tree demo running](https://raw.githubusercontent.com/ulfben/behavior_trees/refs/heads/master/behavior-tree-demo.gif)
+
 ## Workshop Brief: Reverse-Engineering a Behavior Tree
 
 In this workshop you will work with a small but complete AI system implemented using a Behavior Tree.
