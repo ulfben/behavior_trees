@@ -15,6 +15,7 @@ struct Context final{
 struct Node{
     virtual ~Node() = default;
     virtual Status tick(Context& ctx, float dt) const noexcept = 0;
+    virtual ~Node() = default; 
 };
 
 // Composite: Sequence
