@@ -6,7 +6,7 @@ struct World final{
     static constexpr float waypoint_radius = 18.0f;
     static constexpr float food_radius = 16.0f;
 
-    Vector2 food_pos = {STAGE_WIDTH * 0.25f, STAGE_HEIGHT * 0.5f};
+    Vector2 food_pos = {STAGE_WIDTH * 0.5f, STAGE_HEIGHT * 0.5f};
     Vector2 wolf_pos = {STAGE_WIDTH * 0.75f, STAGE_HEIGHT * 0.5f};
     bool wolf_active = true;
     
@@ -18,7 +18,9 @@ struct World final{
     };
 
     void respawn_food() noexcept{
-        food_pos = random_range(ZERO, STAGE_SIZE);
+        auto low = Vector2{STAGE_WIDTH * 0.20f, STAGE_HEIGHT * 0.20f};
+        auto high = Vector2{STAGE_WIDTH * 0.80f, STAGE_HEIGHT * 0.80f};
+        food_pos = random_range(low, high);
     }        
 
     void update(float dt) noexcept{

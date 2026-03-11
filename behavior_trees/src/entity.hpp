@@ -3,14 +3,18 @@
 
 struct Entity final{
     static constexpr float min_speed = 24.0f;
-    static constexpr float max_speed = 200.0f;
-    static constexpr float hunger_per_second = 0.04f;
+    static constexpr float max_speed = 210.0f;
+    static constexpr float hunger_per_second = 0.08f;
     static constexpr float drag = 0.01f;
     static constexpr float seek_weight = 1.0f;
     static constexpr float flee_weight = 1.2f;
 
     // patrol mission
-    int waypoint_index = GetRandomValue(0, 3);    
+    int waypoint_index = GetRandomValue(0, 3);
+    
+    //Some storage for the behavior tree to use. 
+    // For example: the DemoTree has a MemorySequence 
+    // which uses slot 0 in this array to store what child leaf is currently executing
     std::array<int, 8> bt_mem{};
 
     // hunger mission
@@ -22,7 +26,7 @@ struct Entity final{
 
     Vector2 position = random_range(ZERO, STAGE_SIZE);
     Vector2 acceleration = ZERO;
-    Vector2 velocity = vector_from_angle(random_range(0.0f, 2.0f * PI), min_speed);
+    Vector2 velocity = from_angle(random_range(0.0f, 2.0f * PI), min_speed);
 
     void update(float dt) noexcept{
         hunger = std::clamp(hunger + hunger_per_second * dt, 0.0f, 1.0f);

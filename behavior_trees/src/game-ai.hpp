@@ -32,7 +32,7 @@ static Status DoFlee(Context& ctx, float) noexcept{
     return Status::Running;
 }
 
-static Status MoveToCorner(Context& ctx, float) noexcept{
+static Status MoveToWaypoint(Context& ctx, float) noexcept{
     auto& entity = ctx.self;
     entity.debug_state = "PATROL"sv;
     const Vector2 target = ctx.world.waypoints[entity.waypoint_index];
@@ -48,7 +48,7 @@ static Status MoveToCorner(Context& ctx, float) noexcept{
     return Status::Running;
 }
 
-static Status AdvanceCorner(Context& ctx, float) noexcept{
+static Status AdvanceWaypoint(Context& ctx, float) noexcept{
     auto& entity = ctx.self;
     const auto count = (int) ctx.world.waypoints.size();
     entity.waypoint_index = (entity.waypoint_index + 1) % count;
@@ -75,22 +75,22 @@ static Status DoSeekFood(Context& ctx, float) noexcept{
 
 struct DemoTree final{
     // threat branch
-    Leaf threat{ThreatNearby, "Is Threat Nearby?"sv};
-    Leaf flee{DoFlee, "Flee"sv};
-    Sequence fleeSeq{{ &threat, &flee }, "Flee Threat"sv};
+    Leaf threat{ThreatNearby, "\t\tIs Threat Nearby?"sv};
+    Leaf flee{DoFlee, "\t\tFlee"sv};
+    Sequence fleeSeq{{ &threat, &flee }, "\t->Avoid Threats"sv};
 
     // hunger branch
-    Leaf hungry{CheckHunger, "Are we hungry?"sv};
-    Leaf seekFood{DoSeekFood, "Seek Food"sv};
-    Sequence foodSeq{{&hungry, &seekFood}, "Find Food"sv};   
+    Leaf hungry{CheckHunger, "\t\tAre we hungry?"sv};
+    Leaf seekFood{DoSeekFood, "\t\tSeek Food"sv};
+    Sequence foodSeq{{&hungry, &seekFood}, "\t->Don't Starve"sv};   
 
     // patrol branch
-    Leaf moveToCorner{MoveToCorner, "Move To Waypoint"sv};
-    Leaf advanceCorner{AdvanceCorner, "Pick Next Waypoint"sv};
-    MemorySequence patrolSeq{0, {&moveToCorner, &advanceCorner}, "Patrol Waypoints"sv};
-    RepeatForever patrolLoop{&patrolSeq, "Patrol"sv};     
+    Leaf moveToWaypoint{MoveToWaypoint, "\t\t\tMove To Waypoint"sv};
+    Leaf advanceWaypoint{AdvanceWaypoint, "\t\t\tPick Next Waypoint"sv};
+    MemorySequence patrolSeq{0, {&moveToWaypoint, &advanceWaypoint}, "\t\tPatrol Waypoints"sv};
+    RepeatForever patrolLoop{&patrolSeq, "\t->Repeat Forever"sv};     
 
     //this brain can: avoid threats, patrol waypoints, and find food when hungry.
-    Selector root{{&fleeSeq, &foodSeq, &patrolLoop}, "DemoTree Root"sv};
+    Selector root{{&fleeSeq, &foodSeq, &patrolLoop}, "Root (DemoTree)"sv};
     EntityBrain brain{&root};
 };

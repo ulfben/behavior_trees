@@ -52,7 +52,7 @@ static Vector2 random_range(const Vector2& min, const Vector2& max) noexcept{
     return {random_range(min.x, max.x), random_range(min.y, max.y)};
 }
 
-static Vector2 vector_from_angle(float angle, float magnitude) noexcept{
+static Vector2 from_angle(float angle, float magnitude) noexcept{
     return {std::cos(angle) * magnitude, std::sin(angle) * magnitude};
 }
 
@@ -85,6 +85,29 @@ void shuffle(std::span<const T>) = delete;
 
 static void DrawText(const char* s, float x, float y, int size, Color color) noexcept{
     DrawText(s, to_int(x), to_int(y), size, color);
+}
+
+static void DrawText(std::string_view s, float x, float y, int size, Color color) noexcept{
+    // Important: std::string_view does NOT guarantee null-termination.
+    // A C API like raylib's DrawText expects a const char* pointing to a
+    // null-terminated C string.
+    //
+    // Passing s.data() is therefore generally unsafe, because the memory
+    // referenced by the string_view might not contain a '\0' terminator.
+    //
+    // In this demo it happens to work because all strings originate from
+    // string literals, which are guaranteed to be null-terminated.
+    //
+    // Safe alternative if the source is unknown:
+    //   std::string tmp(s);
+    //   DrawText(tmp.c_str(), x, y, size, color);
+    // 
+    // This creates a null-terminated copy before calling the C API.
+    DrawText(s.data(), x, y, size, color);
+}
+
+static const char* TextFormat(const char* fmt, std::string_view s) noexcept{
+    return ::TextFormat(fmt, static_cast<int>(s.size()), s.data());
 }
 
 static constexpr Vector2 wrap(Vector2 p) noexcept{

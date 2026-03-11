@@ -8,9 +8,10 @@ Demo code for my workshop on Behavior Trees in games.
 In this workshop you will work with a small but complete AI system implemented using a Behavior Tree.
 You are not expected to understand the implementation in advance.
 
-Before the workshop, you are expected to have read the assigned chapter on Behavior Trees in the course literature.
+Before the workshop, you are expected to have read the chapters on Behavior Trees in the course literature.
 
-AI For Games, 3rd Edition, Chapter 5
+AI for Games (Ian Millington), 3rd Edition, Chapter 5
+Artificial Intelligence and Games (Yannakakis and Togelius), Chapter 2.2.2
 
 Your task during the workshop is to observe, trace, and reason about how the AI actually behaves, based on running code - not diagrams or theory.
 

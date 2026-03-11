@@ -15,12 +15,12 @@
 #include "game-ai.hpp"
 
 static void draw_behavior_tree(std::span<const std::string_view> debug_trace){
-	int y = 160;
-	DrawText("Behavior Tree Trace:", 20, y, 24, BLUE);
-	y += 30;	
+	float y = 160.0f;
+	DrawText("Behavior Tree Trace:", 20.0f, y, 24, BLUE);
+	y += 30.0f;
 	for(std::string_view name : debug_trace){
-		DrawText(name.data(), 20, y, 20, BLUE);
-		y += 22;
+		DrawText(name, 20.0f, y, 20, BLUE);
+		y += 22.0f;
 	}
 }
 
@@ -42,8 +42,7 @@ static void render(const World& world, std::span<const Entity> entities) noexcep
 	for(const auto& e : entities){
 		e.render();
 		Vector2 p = {e.position.x + 10.0f, e.position.y + 10.0f};
-		DrawText(TextFormat("Mode: %s", e.debug_state.data()), p.x, p.y, FONT_SIZE, DARKGRAY);
-		
+		DrawText(TextFormat("Mode: %.*s", e.debug_state), p.x, p.y, FONT_SIZE, DARKGRAY);		
 		if(e.debug_state == "SEEK FOOD"){
 			DrawLineV(e.position, world.food_pos, Fade(DARKGREEN, 0.5f));
 		} else if(e.debug_state == "PATROL"){
