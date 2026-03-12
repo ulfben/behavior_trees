@@ -10,8 +10,8 @@ You are not expected to understand the implementation in advance.
 
 Before the workshop, you are expected to have read the chapters on Behavior Trees in the course literature.
 
-AI for Games (Ian Millington), 3rd Edition, Chapter 5
-Artificial Intelligence and Games (Yannakakis and Togelius), Chapter 2.2.2
+* AI for Games (Ian Millington), 3rd Edition, Chapter 5
+* Artificial Intelligence and Games (Yannakakis and Togelius), Chapter 2.2.2
 
 Your task during the workshop is to observe, trace, and reason about how the AI actually behaves, based on running code - not diagrams or theory.
 
