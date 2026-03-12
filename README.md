@@ -18,28 +18,28 @@ Your task during the workshop is to observe, trace, and reason about how the AI 
 The goal is to build a correct mental model of how this AI works over time.
 
 ## Source Structure
-* **`common.hpp`**
+* **[`common.hpp`](https://github.com/ulfben/behavior_trees/blob/master/behavior_trees/src/common.hpp)**
     Foundational configuration, math utilities, and Raylib helpers used across the project.
     
-* **`window.hpp`**
+* **[`window.hpp`](https://github.com/ulfben/behavior_trees/blob/master/behavior_trees/src/window.hpp)**
     An RAII wrapper for Raylib that manages the window lifecycle
 
-* **`entity.hpp`**
+* **[`entity.hpp`](https://github.com/ulfben/behavior_trees/blob/master/behavior_trees/src/entity.hpp)**
     Defines the agent data model, including physics state (position, velocity), rendering, and individual AI memory.
 
-* **`world.hpp`**
+* **[`world.hpp`](https://github.com/ulfben/behavior_trees/blob/master/behavior_trees/src/world.hpp)**
     Manages global environmental state, such as waypoints, hazards (the Wolf), and resources (Food).
 
-* **`steering.hpp`**
-    Stateless physics helpers that calculate steering forces (such as; seek, flee) to drive entity movement.
+* **[`steering.hpp`](https://github.com/ulfben/behavior_trees/blob/master/behavior_trees/src/steering.hpp)**
+    Stateless physics helpers that calculate [steering forces](https://github.com/ulfben/boids_workshop) (such as; seek, flee) to drive entity movement.
 
-* **`behavior-tree.hpp`**
-    The generic AI engine. Defines the core architecture: `Node` interface, Composites (`Selector`, `Sequence`), and the execution `Context`.
+* **[`behavior-tree.hpp`](https://github.com/ulfben/behavior_trees/blob/master/behavior_trees/src/behavior-tree.hpp)**
+    The generic AI engine. Defines the core architecture: the `Node` interface, Node-composites (`Selector`, `Sequence`), and the execution `Context`.
 
-* **`game-ai.hpp`**
+* **[`game-ai.hpp`](https://github.com/ulfben/behavior_trees/blob/master/behavior_trees/src/game-ai.hpp)**
     The game-specific logic. Implements the concrete Leaf nodes (conditions/actions) and assembles the specific Behavior Tree used in the demo.
 
-* **`main.cpp`**
+* **[`main.cpp`](https://github.com/ulfben/behavior_trees/blob/master/behavior_trees/src/main.cpp)**
     The application entry point. Initializes the systems and executes the primary game loop.
 
 ---
